@@ -16,17 +16,24 @@ function generateRandomString() {
   return Math.floor((1 + Math.random()) * 0x100000).toString(16);
 };
 
-app.post("/urls/:shortURL/delete", (req, res) => {
-  delete urlDatabase[req.params.shortURL];
-  res.redirect("/urls");
-});
-
 app.post("/urls", (req, res) => {
   const short = generateRandomString();
   urlDatabase[short] = req.body.longURL;
   res.redirect(`/urls/${short}`);
   //console.log(req.body);  // Log the POST request body to the console
   //res.send("Ok");         // Respond with 'Ok' (we will replace this)
+});
+
+
+
+// app.post("/urls/:shortURL", (req, res) => {
+//   urlDatabase[req.params.shortURL] = req.body.longURL;
+//   res.redirect("/urls");
+// });
+
+app.post("/urls/:shortURL/delete", (req, res) => {
+  delete urlDatabase[req.params.shortURL];
+  res.redirect("/urls");
 });
 
 app.get("/", (req, res) => {
@@ -51,6 +58,7 @@ app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   res.redirect(longURL);
 });
+
 
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
