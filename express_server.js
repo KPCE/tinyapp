@@ -16,6 +16,10 @@ function generateRandomString() {
   return Math.floor((1 + Math.random()) * 0x100000).toString(16);
 };
 
+app.post("/urls/:shortURL/delete", (req, res) => {
+  delete urlDatabase[req.params.shortURL];
+  res.redirect("/urls");
+});
 
 app.post("/urls", (req, res) => {
   const short = generateRandomString();
