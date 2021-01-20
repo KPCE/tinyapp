@@ -26,6 +26,15 @@ const users = {
   }
 }
 
+function getUserByEmail(email) {
+  for (let user in users) {
+    if (users[user].email === email) {
+      return users[user];
+    } else {
+      return false;
+    }
+  }
+};
 
 
 function generateRandomString() {
@@ -34,6 +43,15 @@ function generateRandomString() {
 
 //handler for new users to register, adding to our users object
 app.post("/register", (req, res) => {
+  if (req.body.email === "" || req.body.password === "") {
+    console.log(users)
+    res.sendStatus(400);
+    console.log(users)
+  } else if (getUserByEmail(req.body.email)) {
+    console.log(users)
+    res.sendStatus(400);
+    console.log(users)
+  };
   const short = generateRandomString();
   users[short] = {
     id: short,
@@ -97,7 +115,7 @@ app.get("/urls/new", (req, res) => {
 //rendering registration page
 app.get("/register", (req, res) => {
   const templateVars = { urls: urlDatabase, user: users[req.cookies["user_id"]]};
-  res.render("urls_register")
+  res.render("urls_register", templateVars);
 });
 
 
