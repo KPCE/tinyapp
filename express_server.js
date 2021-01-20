@@ -17,6 +17,7 @@ function generateRandomString() {
   return Math.floor((1 + Math.random()) * 0x100000).toString(16);
 };
 
+
 app.post("/urls", (req, res) => {
   const short = generateRandomString();
   urlDatabase[short] = req.body.longURL;
@@ -28,6 +29,14 @@ app.post("/urls", (req, res) => {
 //add post function to handle users logging in
 app.post("/login", (req, res) => {
   res.cookie('username', req.body.username);
+  res.redirect("/urls");
+});
+
+//add post function to handle users logging out
+app.post("/logout", (req, res) => {
+  console.log(req.cookies)
+  console.log(req.cookies["username"]);
+  res.clearCookie('username', req.cookies["username"]);
   res.redirect("/urls");
 });
 
@@ -46,16 +55,19 @@ app.get("/", (req, res) => {
 });
 
 app.get("/urls", (req, res) => { //this page isn't working currently, think I need to render something?
-  const templateVars = { urls: urlDatabase };
+  const templateVars = { urls: urlDatabase, username: req.cookies["username"]};
   res.render("urls_index", templateVars);
 });
 
 app.get("/urls/new", (req, res) => {
-  res.render("urls_new");
+  const templateVars = {
+    username: req.cookies["username"]
+  };
+  res.render("urls_new", templateVars);
 });
 
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
+  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], username: req.cookies["username"] };
   res.render("urls_show", templateVars);
 });
 
