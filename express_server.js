@@ -57,7 +57,7 @@ app.post("/register", (req, res) => {
     email: req.body.email,
     password: bcrypt.hashSync(req.body.password, 10)
   };
-  req.session.user_id = short;
+  req.session.userId = short;
   console.log(urlDatabase[short]);
   res.redirect("/urls");
 });
@@ -73,7 +73,7 @@ app.post("/login", (req, res) => {
     return res.sendStatus(403);
   }
   //res.cookie('user_id', getUserByEmail(req.body.email).id);
-  req.session.user_id = getUserByEmail(req.body.email, users).id;
+  req.session.userId = getUserByEmail(req.body.email, users).id;
   res.redirect("/urls");
 });
 //
@@ -92,7 +92,7 @@ app.post("/login", (req, res) => {
 
 app.post("/urls", (req, res) => {
   const short = generateRandomString();
-  urlDatabase[short] = { longURL: req.body.longURL, userID: req.session.user_id };
+  urlDatabase[short] = { longURL: req.body.longURL, userID: req.session.userId };
   res.redirect(`/urls/${short}`);
 });
 
@@ -109,7 +109,7 @@ app.post("/logout", (req, res) => {
 
 //handles edit functions of URLs
 app.post("/urls/:shortURL", (req, res) => {
-  if (req.session.user_id === urlDatabase[req.params.shortURL].userID) {
+  if (req.session.userId === urlDatabase[req.params.shortURL].userID) {
     urlDatabase[req.params.shortURL].longURL = req.body.longURL;
     res.redirect("/urls");
   } else {
@@ -119,7 +119,7 @@ app.post("/urls/:shortURL", (req, res) => {
   
 //handles deletion of URLS
 app.post("/urls/:shortURL/delete", (req, res) => {
-  if (req.session.user_id === urlDatabase[req.params.shortURL].userID) {
+  if (req.session.userId === urlDatabase[req.params.shortURL].userID) {
     delete urlDatabase[req.params.shortURL];
     res.redirect("/urls");
   } else {
@@ -131,7 +131,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   
   
 app.get("/", (req, res) => {
-  if (req.session.user_id) {
+  if (req.session.userId) {
     res.redirect("/urls");
   } else {
     res.redirect("/login");
@@ -159,23 +159,23 @@ app.get("/hello", (req, res) => {
   
 //render login page when user attempts to login
 app.get("/login", (req, res) => {
-  if (req.session.user_id) {
+  if (req.session.userId) {
     return res.redirect("/urls");
   }
-  const templateVars = { urls: urlDatabase, user: users[req.session.user_id] };
+  const templateVars = { urls: urlDatabase, user: users[req.session.userId] };
   res.render("urls_login", templateVars);
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlsForUser(req.session.user_id, urlDatabase), user: users[req.session.user_id] };// previous code that was here for reference username: req.cookies["username"]};
+  const templateVars = { urls: urlsForUser(req.session.userId, urlDatabase), user: users[req.session.userId] };// previous code that was here for reference username: req.cookies["username"]};
   res.render("urls_index", templateVars); //doubting users is correct, should be the object for the user...user_id: users[req.cookies["username"]]
 });
 
 app.get("/urls/new", (req, res) => {
   const templateVars = {
-    urls: urlDatabase, user: users[req.session.user_id]//user_id: users[req.cookies["user_id"]]
+    urls: urlDatabase, user: users[req.session.userId]//user_id: users[req.cookies["user_id"]]
   };
-  if (!users[req.session.user_id]) {
+  if (!users[req.session.userId]) {
     res.redirect("/login");
   } else {
     res.render("urls_new", templateVars);
@@ -184,25 +184,25 @@ app.get("/urls/new", (req, res) => {
 
 //rendering registration page
 app.get("/register", (req, res) => {
-  if (req.session.user_id) {
+  if (req.session.userId) {
     return res.redirect("/urls");
   }
-  const templateVars = { urls: urlDatabase, user: users[req.session.user_id]};
+  const templateVars = { urls: urlDatabase, user: users[req.session.userId]};
   res.render("urls_register", templateVars);
 });
 
 
 app.get("/urls/:shortURL", (req, res) => {
-  if (!users[req.session.user_id]) {
+  if (!users[req.session.userId]) {
     return res.sendStatus(404);
   }
   if (!urlDatabase[req.params.shortURL]) {
     return res.sendStatus(404);
   }
-  if (users[req.session.user_id].id !== urlDatabase[req.params.shortURL].userID) {
+  if (users[req.session.userId].id !== urlDatabase[req.params.shortURL].userID) {
     res.sendStatus(403);
   }
-  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.session.user_id]};
+  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.session.userId]};
   res.render("urls_show", templateVars);
 });
 //if a URL for the given ID does not exist:
