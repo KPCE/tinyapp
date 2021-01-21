@@ -2,6 +2,9 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cookieParser = require('cookie-parser'); //remove once replaced by cookie session fully, remove the use, and remove from package.json
 const cookieSession = require('cookie-session');
+const {getUserByEmail} = require('./helpers');
+const {urlsForUser} = require('./helpers');
+const {generateRandomString} = require('./helpers');
 const bcrypt = require('bcrypt');
 const app = express();
 const PORT = 8080; // default port 8080
@@ -39,42 +42,7 @@ const users = {
   }
 };
 
-//---------------------------------------------------HELPER FUNCTIONS---------------------------------------------------------------------------
 
-const getUserByEmail = function(email) {
-  let bool = false;
-  for (let user in users) {
-    if (users[user].email === email) {
-      return users[user];
-    } 
-  }
-  return bool;
-};
-
-const getUserByPassword = function(password) {
-  for (let user in users) {
-    if (users[user].password === password) {
-      return users[user];
-    } else {
-      return false;
-    }
-  }
-};
-
-const urlsForUser = function(id) {
-  let myURLS = {};
-  for (let sLinks in urlDatabase) {
-    if (id === urlDatabase[sLinks].userID) {
-      myURLS[sLinks] = urlDatabase[sLinks];
-    }
-  }
-  return myURLS;
-};
-
-
-const generateRandomString = function() {
-  return Math.floor((1 + Math.random()) * 0x100000).toString(16);
-};
 //---------------------------------------------------Post Handlers ---------------------------------------------------------------------------
 
 //handler for new users to register, adding to our users object
@@ -83,7 +51,7 @@ app.post("/register", (req, res) => {
     console.log(users);
     res.sendStatus(400);
     console.log(users);
-  } else if (getUserByEmail(req.body.email)) {
+  } else if (getUserByEmail(req.body.email, users)) {
     console.log(users);
     res.sendStatus(400);
     console.log(users);
@@ -102,16 +70,16 @@ app.post("/register", (req, res) => {
 
 //add post function to handle users logging in
 app.post("/login", (req, res) => {
-  if (!getUserByEmail(req.body.email)) {
+  if (!getUserByEmail(req.body.email, users)) {
     console.log("email doesn't exist")
     return res.sendStatus(403);
   }
-  if (!bcrypt.compareSync(req.body.password, getUserByEmail(req.body.email).password)) {
+  if (!bcrypt.compareSync(req.body.password, getUserByEmail(req.body.email, users).password)) {
     console.log("password didn't match")
     return res.sendStatus(403);
   }
   //res.cookie('user_id', getUserByEmail(req.body.email).id);
-  req.session.user_id = getUserByEmail(req.body.email).id;
+  req.session.user_id = getUserByEmail(req.body.email, users).id;
   res.redirect("/urls");
 });
 //     
@@ -195,7 +163,7 @@ app.get("/login", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlsForUser(req.session.user_id), user: users[req.session.user_id] };// previous code that was here for reference username: req.cookies["username"]};
+  const templateVars = { urls: urlsForUser(req.session.user_id, urlDatabase), user: users[req.session.user_id] };// previous code that was here for reference username: req.cookies["username"]};
   res.render("urls_index", templateVars); //doubting users is correct, should be the object for the user...user_id: users[req.cookies["username"]]
 });
 
