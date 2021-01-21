@@ -16,8 +16,8 @@ app.listen(PORT, () => {
 //---------------------------------------------------Objects for reference/future database----------------------------------------------------------------
 
 const urlDatabase = {
-  "b2xVn2": "http://www.lighthouselabs.ca",
-  "9sm5xK": "http://www.google.com"
+  "b2xVn2": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
+  "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" }
 };
 
 const users = {
@@ -35,7 +35,7 @@ const users = {
 
 //---------------------------------------------------HELPER FUNCTIONS---------------------------------------------------------------------------
 
-function getUserByEmail(email) {
+const getUserByEmail = function(email) {
   for (let user in users) {
     if (users[user].email === email) {
       return users[user];
@@ -43,9 +43,9 @@ function getUserByEmail(email) {
       return false;
     }
   }
-}
+};
 
-function getUserByPassword(password) {
+const getUserByPassword = function(password) {
   for (let user in users) {
     if (users[user].password === password) {
       return users[user];
@@ -53,12 +53,22 @@ function getUserByPassword(password) {
       return false;
     }
   }
-}
+};
+
+const urlsForUser = function(id) {
+  let myURLS = {};
+  for (let sLinks in urlDatabase) {
+    if (id === urlDatabase[sLinks].userID) {
+      myURLS[sLinks] = urlDatabase[sLinks];
+    }
+  }
+  return myURLS;
+};
 
 
-function generateRandomString() {
+const generateRandomString = function() {
   return Math.floor((1 + Math.random()) * 0x100000).toString(16);
-}
+};
 //---------------------------------------------------Post Handlers ---------------------------------------------------------------------------
 
 //handler for new users to register, adding to our users object
@@ -86,10 +96,8 @@ app.post("/register", (req, res) => {
 
 app.post("/urls", (req, res) => {
   const short = generateRandomString();
-  urlDatabase[short] = req.body.longURL;
+  urlDatabase[short] = { longURL: req.body.longURL, userID: req.cookies["user_id"] };
   res.redirect(`/urls/${short}`);
-  //console.log(req.body);  // Log the POST request body to the console
-  //res.send("Ok");         // Respond with 'Ok' (we will replace this)
 });
 
 //add post function to handle users logging in
@@ -117,14 +125,24 @@ app.post("/logout", (req, res) => {
   res.redirect("/urls");
 });
 
-// app.post("/urls/:shortURL", (req, res) => {
-//   urlDatabase[req.params.shortURL] = req.body.longURL;
-//   res.redirect("/urls");
-// });
+//handles edit functions of URLs
+app.post("/urls/:shortURL", (req, res) => {
+  if (req.cookies["user_id"] === urlDatabase[req.params.shortURL].userID) {
+    urlDatabase[req.params.shortURL].longURL = req.body.longURL;
+    res.redirect("/urls");
+  } else {
+    res.send("you can only modify or delete URLs you've created");
+  }
+});
   
+//handles deletion of URLS
 app.post("/urls/:shortURL/delete", (req, res) => {
-  delete urlDatabase[req.params.shortURL];
-  res.redirect("/urls");
+  if (req.cookies["user_id"] === urlDatabase[req.params.shortURL].userID) {
+    delete urlDatabase[req.params.shortURL];
+    res.redirect("/urls");
+  } else {
+    res.send("you can only modify or delete URLs you've created");
+  }
 });
   
 //---------------------------------------------------Get handlers---------------------------------------------------------------------------
@@ -135,11 +153,11 @@ app.get("/", (req, res) => {
 });
   
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL];
+  const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
   
-  
+//why is this here? does it do anything? should probaby delete so people can't get my full database
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
 });
@@ -156,7 +174,7 @@ app.get("/login", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlDatabase, user: users[req.cookies["user_id"]] };// previous code that was here for reference username: req.cookies["username"]};
+  const templateVars = { urls: urlsForUser(req.cookies["user_id"]), user: users[req.cookies["user_id"]] };// previous code that was here for reference username: req.cookies["username"]};
   res.render("urls_index", templateVars); //doubting users is correct, should be the object for the user...user_id: users[req.cookies["username"]]
 });
 
@@ -164,7 +182,11 @@ app.get("/urls/new", (req, res) => {
   const templateVars = {
     urls: urlDatabase, user: users[req.cookies["user_id"]]//user_id: users[req.cookies["user_id"]]
   };
-  res.render("urls_new", templateVars);
+  if (!users[req.cookies["user_id"]]) {
+    res.redirect("/login");
+  } else {
+    res.render("urls_new", templateVars);
+  }
 });
 
 //rendering registration page
@@ -175,7 +197,7 @@ app.get("/register", (req, res) => {
 
 
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL], user: users[req.cookies["user_id"]]};
+  const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.cookies["user_id"]]};
   res.render("urls_show", templateVars);
 });
 
