@@ -1,19 +1,17 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const cookieParser = require('cookie-parser'); //remove once replaced by cookie session fully, remove the use, and remove from package.json
 const cookieSession = require('cookie-session');
 const {getUserByEmail} = require('./helpers');
 const {urlsForUser} = require('./helpers');
 const {generateRandomString} = require('./helpers');
 const bcrypt = require('bcrypt');
 const app = express();
-const PORT = 8080; // default port 8080
+const PORT = 8080;
 
 //---------------------------------------------------Middleware---------------------------------------------------------------------------
 
 
 app.use(bodyParser.urlencoded({extended: true}));
-app.use(cookieParser());
 app.use(cookieSession({
   name: 'tiny hello',
   keys: ['why-bother']
@@ -48,13 +46,10 @@ const users = {
 //handler for new users to register, adding to our users object
 app.post("/register", (req, res) => {
   if (req.body.email === "" || req.body.password === "") {
-    console.log(users);
-    res.sendStatus(400);
-    console.log(users);
-  } else if (getUserByEmail(req.body.email, users)) {
-    console.log(users);
-    res.sendStatus(400);
-    console.log(users);
+    return res.sendStatus(400);
+  }
+  if (getUserByEmail(req.body.email, users)) {
+    return res.sendStatus(400);
   }
   const short = generateRandomString();
   users[short] = {
@@ -62,7 +57,6 @@ app.post("/register", (req, res) => {
     email: req.body.email,
     password: bcrypt.hashSync(req.body.password, 10)
   };
-  //res.cookie('user_id', short);
   req.session.user_id = short;
   console.log(urlDatabase[short]);
   res.redirect("/urls");
@@ -71,18 +65,18 @@ app.post("/register", (req, res) => {
 //add post function to handle users logging in
 app.post("/login", (req, res) => {
   if (!getUserByEmail(req.body.email, users)) {
-    console.log("email doesn't exist")
+    console.log("email doesn't exist");
     return res.sendStatus(403);
   }
   if (!bcrypt.compareSync(req.body.password, getUserByEmail(req.body.email, users).password)) {
-    console.log("password didn't match")
+    console.log("password didn't match");
     return res.sendStatus(403);
   }
   //res.cookie('user_id', getUserByEmail(req.body.email).id);
   req.session.user_id = getUserByEmail(req.body.email, users).id;
   res.redirect("/urls");
 });
-//     
+//
 
 //   if (!getUserByEmail(req.body.email)) {
 //     console.log("email didn't register")
@@ -129,7 +123,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
     delete urlDatabase[req.params.shortURL];
     res.redirect("/urls");
   } else {
-    res.send("you can only modify or delete URLs you've created");
+    res.Status(404).send("you can only modify or delete URLs you've created");
   }
 });
   
@@ -137,10 +131,17 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   
   
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  if (req.session.user_id) {
+    res.redirect("/urls");
+  } else {
+    res.redirect("/login");
+  }
 });
   
 app.get("/u/:shortURL", (req, res) => {
+  if (!urlDatabase[req.params.shortURL]) {
+    return res.sendStatus(404);
+  }
   const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
@@ -148,7 +149,7 @@ app.get("/u/:shortURL", (req, res) => {
 //function for checking my objects are as they should be, this function should be commented out for publishing.
 app.get("/urls.json", (req, res) => {
   //res.json(urlDatabase);
-  res.json(users)
+  res.json(users);
 });
   
 app.get("/hello", (req, res) => {
@@ -158,6 +159,9 @@ app.get("/hello", (req, res) => {
   
 //render login page when user attempts to login
 app.get("/login", (req, res) => {
+  if (req.session.user_id) {
+    return res.redirect("/urls");
+  }
   const templateVars = { urls: urlDatabase, user: users[req.session.user_id] };
   res.render("urls_login", templateVars);
 });
@@ -180,14 +184,30 @@ app.get("/urls/new", (req, res) => {
 
 //rendering registration page
 app.get("/register", (req, res) => {
+  if (req.session.user_id) {
+    return res.redirect("/urls");
+  }
   const templateVars = { urls: urlDatabase, user: users[req.session.user_id]};
   res.render("urls_register", templateVars);
 });
 
 
 app.get("/urls/:shortURL", (req, res) => {
+  if (!users[req.session.user_id]) {
+    return res.sendStatus(404);
+  }
+  if (!urlDatabase[req.params.shortURL]) {
+    return res.sendStatus(404);
+  }
+  if (users[req.session.user_id].id !== urlDatabase[req.params.shortURL].userID) {
+    res.sendStatus(403);
+  }
   const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.session.user_id]};
   res.render("urls_show", templateVars);
 });
-
-
+//if a URL for the given ID does not exist:
+//(Minor) returns HTML with a relevant error message
+// if user is not logged in:
+// returns HTML with a relevant error message
+// if user is logged it but does not own the URL with the given ID:
+// returns HTML with a relevant error message
