@@ -1,8 +1,9 @@
 const express = require("express");
-const app = express();
-const PORT = 8080; // default port 8080
 const bodyParser = require("body-parser");
 const cookieParser = require('cookie-parser');
+const bcrypt = require('bcrypt');
+const app = express();
+const PORT = 8080; // default port 8080
 
 //---------------------------------------------------Middleware---------------------------------------------------------------------------
 
@@ -24,25 +25,25 @@ const users = {
   "userRandomID": {
     id: "userRandomID",
     email: "user@example.com",
-    password: "purple-monkey-dinosaur"
+    password: bcrypt.hashSync("purple-monkey-dinosaur", 10)
   },
   "user2RandomID": {
     id: "user2RandomID",
     email: "user2@example.com",
-    password: "dishwasher-funk"
+    password: bcrypt.hashSync("dishwasher-funk",10)
   }
 };
 
 //---------------------------------------------------HELPER FUNCTIONS---------------------------------------------------------------------------
 
 const getUserByEmail = function(email) {
+  let bool = false;
   for (let user in users) {
     if (users[user].email === email) {
       return users[user];
-    } else {
-      return false;
-    }
+    } 
   }
+  return bool;
 };
 
 const getUserByPassword = function(password) {
@@ -86,13 +87,39 @@ app.post("/register", (req, res) => {
   users[short] = {
     id: short,
     email: req.body.email,
-    password: req.body.password
+    password: bcrypt.hashSync(req.body.password, 10)
   };
   res.cookie('user_id', short);
   console.log(urlDatabase[short]);
   res.redirect("/urls");
 });
 
+//add post function to handle users logging in
+app.post("/login", (req, res) => {
+  if (!getUserByEmail(req.body.email)) {
+    console.log("email doesn't exist")
+    return res.sendStatus(403);
+  }
+  if (!bcrypt.compareSync(req.body.password, getUserByEmail(req.body.email).password)) {
+    console.log("password didn't match")
+    return res.sendStatus(403);
+  }
+  res.cookie('user_id', getUserByEmail(req.body.email).id);
+  res.redirect("/urls");
+});
+//     
+
+//   if (!getUserByEmail(req.body.email)) {
+//     console.log("email didn't register")
+//     res.sendStatus(403);
+//   } else if (bcrypt.compareSync(req.body.password, getUserByEmail(req.body.email).password)) {//!getUserByPassword(req.body.password)
+//     res.cookie('user_id', getUserByEmail(req.body.email).id);
+//     res.redirect("/urls");
+//   } else {
+//     console.log("password didn't match")
+//     res.sendStatus(403);
+//   }
+// });
 
 app.post("/urls", (req, res) => {
   const short = generateRandomString();
@@ -100,21 +127,6 @@ app.post("/urls", (req, res) => {
   res.redirect(`/urls/${short}`);
 });
 
-//add post function to handle users logging in
-app.post("/login", (req, res) => {
-  if (!getUserByEmail(req.body.email)) {
-    //console.log(users)
-    res.sendStatus(403);
-    //console.log(users)
-  } else if (!getUserByPassword(req.body.password)) {
-    //console.log(users)
-    res.sendStatus(403);
-    //console.log(users)
-  } else {
-    res.cookie('user_id', getUserByEmail(req.body.email).id);
-    res.redirect("/urls");
-  }
-});
 
 
 //add post function to handle users logging out
@@ -157,9 +169,10 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(longURL);
 });
   
-//why is this here? does it do anything? should probaby delete so people can't get my full database
+//function for checking my objects are as they should be, this function should be commented out for publishing.
 app.get("/urls.json", (req, res) => {
-  res.json(urlDatabase);
+  //res.json(urlDatabase);
+  res.json(users)
 });
   
 app.get("/hello", (req, res) => {
