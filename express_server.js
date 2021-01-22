@@ -136,6 +136,7 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(longURL);
 });
 
+
 //---------------------------------------------------Page renderers---------------------------------------------------------------------------
   
 //render login page when user attempts to login, or redirect to urls if already logged in
