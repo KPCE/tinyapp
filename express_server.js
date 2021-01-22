@@ -7,8 +7,16 @@ const {generateRandomString} = require('./helpers');
 const bcrypt = require('bcrypt');
 const app = express();
 const PORT = 8080;
-
-//---------------------------------------------------Middleware---------------------------------------------------------------------------
+/*
+Table of contents (use control + f to jump to each header)
+order for reading: table number, line number of title/where section starts, title
+1) line 19 - Middleware + Server setup
+2) line 31 - Objects for reference/future database
+3) line 54 - Post Handlers/Endpoints
+4) line 119 - Get handlers/endpoints
+5) line 140 - Page renderers
+*/
+//---------------------------------------------------Middleware + Server setup---------------------------------------------------------------------------
 
 
 app.use(bodyParser.urlencoded({extended: true}));
@@ -22,11 +30,13 @@ app.listen(PORT, () => {
 });
 //---------------------------------------------------Objects for reference/future database----------------------------------------------------------------
 
+//mock database to hold all created urls, along with their long url and creator
 const urlDatabase = {
   "b2xVn2": { longURL: "http://www.lighthouselabs.ca", userID: "userRandomID" },
   "9sm5xK": { longURL: "http://www.google.com", userID: "user2RandomID" }
 };
 
+//mock database to hold all users and relevant information
 const users = {
   "userRandomID": {
     id: "userRandomID",
@@ -41,9 +51,9 @@ const users = {
 };
 
 
-//---------------------------------------------------Post Handlers ---------------------------------------------------------------------------
+//---------------------------------------------------Post Handlers/Endpoints ---------------------------------------------------------------------------
 
-//handler for new users to register, adding to our users object
+//endpoint for new users to register, checks for empty fields and whether email already exists for a user, generates new user and adds to database
 app.post("/register", (req, res) => {
   if (req.body.email === "" || req.body.password === "") {
     return res.sendStatus(400);
@@ -58,56 +68,35 @@ app.post("/register", (req, res) => {
     password: bcrypt.hashSync(req.body.password, 10)
   };
   req.session.userId = short;
-  console.log(urlDatabase[short]);
   res.redirect("/urls");
 });
 
-//add post function to handle users logging in
+//endpoint for users to login, if already logged in redirects to urls page
 app.post("/login", (req, res) => {
   if (!getUserByEmail(req.body.email, users)) {
-    console.log("email doesn't exist");
     return res.sendStatus(403);
   }
   if (!bcrypt.compareSync(req.body.password, getUserByEmail(req.body.email, users).password)) {
-    console.log("password didn't match");
     return res.sendStatus(403);
   }
-  //res.cookie('user_id', getUserByEmail(req.body.email).id);
   req.session.userId = getUserByEmail(req.body.email, users).id;
   res.redirect("/urls");
 });
-//
 
-//   if (!getUserByEmail(req.body.email)) {
-//     console.log("email didn't register")
-//     res.sendStatus(403);
-//   } else if (bcrypt.compareSync(req.body.password, getUserByEmail(req.body.email).password)) {//!getUserByPassword(req.body.password)
-//     res.cookie('user_id', getUserByEmail(req.body.email).id);
-//     res.redirect("/urls");
-//   } else {
-//     console.log("password didn't match")
-//     res.sendStatus(403);
-//   }
-// });
-
+//endpoint for users to generate new shortURLS which are added to the database and tied to the user who created them
 app.post("/urls", (req, res) => {
   const short = generateRandomString();
   urlDatabase[short] = { longURL: req.body.longURL, userID: req.session.userId };
   res.redirect(`/urls/${short}`);
 });
 
-
-
-//add post function to handle users logging out
+//endpoint for users to log out
 app.post("/logout", (req, res) => {
-  //console.log(req.cookies)
-  //console.log(req.cookies["user_id"]);
-  //res.clearCookie('user_id', req.cookies["user_id"]);
   req.session = null;
   res.redirect("/urls");
 });
 
-//handles edit functions of URLs
+//endpoint for users to edit only their longURLS
 app.post("/urls/:shortURL", (req, res) => {
   if (req.session.userId === urlDatabase[req.params.shortURL].userID) {
     urlDatabase[req.params.shortURL].longURL = req.body.longURL;
@@ -117,7 +106,7 @@ app.post("/urls/:shortURL", (req, res) => {
   }
 });
   
-//handles deletion of URLS
+//endpoint for users to delete their short URLs
 app.post("/urls/:shortURL/delete", (req, res) => {
   if (req.session.userId === urlDatabase[req.params.shortURL].userID) {
     delete urlDatabase[req.params.shortURL];
@@ -127,9 +116,9 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   }
 });
   
-//---------------------------------------------------Get handlers---------------------------------------------------------------------------
+//---------------------------------------------------Get handlers/endpoints---------------------------------------------------------------------------
   
-  
+//endpoint for root directory, sends to urls page if logged in or to login page otherwise
 app.get("/", (req, res) => {
   if (req.session.userId) {
     res.redirect("/urls");
@@ -138,6 +127,7 @@ app.get("/", (req, res) => {
   }
 });
   
+//endpoint for any user to use a generated shortURL if it exists
 app.get("/u/:shortURL", (req, res) => {
   if (!urlDatabase[req.params.shortURL]) {
     return res.sendStatus(404);
@@ -145,19 +135,10 @@ app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL].longURL;
   res.redirect(longURL);
 });
-  
-//function for checking my objects are as they should be, this function should be commented out for publishing.
-app.get("/urls.json", (req, res) => {
-  //res.json(urlDatabase);
-  res.json(users);
-});
-  
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
+
 //---------------------------------------------------Page renderers---------------------------------------------------------------------------
   
-//render login page when user attempts to login
+//render login page when user attempts to login, or redirect to urls if already logged in
 app.get("/login", (req, res) => {
   if (req.session.userId) {
     return res.redirect("/urls");
@@ -166,14 +147,16 @@ app.get("/login", (req, res) => {
   res.render("urls_login", templateVars);
 });
 
+//render /urls page with relevant information passed
 app.get("/urls", (req, res) => {
-  const templateVars = { urls: urlsForUser(req.session.userId, urlDatabase), user: users[req.session.userId] };// previous code that was here for reference username: req.cookies["username"]};
-  res.render("urls_index", templateVars); //doubting users is correct, should be the object for the user...user_id: users[req.cookies["username"]]
+  const templateVars = { urls: urlsForUser(req.session.userId, urlDatabase), user: users[req.session.userId] };
+  res.render("urls_index", templateVars);
 });
 
+//render page for entering new URLs to be shortened, only if the user is logged in
 app.get("/urls/new", (req, res) => {
   const templateVars = {
-    urls: urlDatabase, user: users[req.session.userId]//user_id: users[req.cookies["user_id"]]
+    urls: urlDatabase, user: users[req.session.userId]
   };
   if (!users[req.session.userId]) {
     res.redirect("/login");
@@ -182,7 +165,7 @@ app.get("/urls/new", (req, res) => {
   }
 });
 
-//rendering registration page
+//render page for new users to register
 app.get("/register", (req, res) => {
   if (req.session.userId) {
     return res.redirect("/urls");
@@ -191,7 +174,7 @@ app.get("/register", (req, res) => {
   res.render("urls_register", templateVars);
 });
 
-
+//render show page for shortURL to longURL, if user exists and the requested data exists in our database and if the user was the creator of that url
 app.get("/urls/:shortURL", (req, res) => {
   if (!users[req.session.userId]) {
     return res.sendStatus(404);
@@ -205,9 +188,8 @@ app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL, user: users[req.session.userId]};
   res.render("urls_show", templateVars);
 });
-//if a URL for the given ID does not exist:
-//(Minor) returns HTML with a relevant error message
-// if user is not logged in:
-// returns HTML with a relevant error message
-// if user is logged it but does not own the URL with the given ID:
-// returns HTML with a relevant error message
+
+//endpoint to handle any mistyped or non-existant page
+app.get("*", (req, res) => {
+  res.Status(404).send("Page does not exist");
+});
