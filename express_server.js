@@ -4,6 +4,7 @@ const cookieSession = require('cookie-session');
 const {getUserByEmail} = require('./helpers');
 const {urlsForUser} = require('./helpers');
 const {generateRandomString} = require('./helpers');
+const methodOverride = require('method-override');
 const bcrypt = require('bcrypt');
 const app = express();
 const PORT = 8080;
@@ -20,6 +21,7 @@ order for reading: table number, line number of title/where section starts, titl
 
 
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(methodOverride('_method'));
 app.use(cookieSession({
   name: 'tiny hello',
   keys: ['why-bother']
@@ -97,7 +99,7 @@ app.post("/logout", (req, res) => {
 });
 
 //endpoint for users to edit only their longURLS
-app.post("/urls/:shortURL", (req, res) => {
+app.put("/urls/:shortURL", (req, res) => {
   if (req.session.userId === urlDatabase[req.params.shortURL].userID) {
     urlDatabase[req.params.shortURL].longURL = req.body.longURL;
     res.redirect("/urls");
@@ -107,7 +109,7 @@ app.post("/urls/:shortURL", (req, res) => {
 });
   
 //endpoint for users to delete their short URLs
-app.post("/urls/:shortURL/delete", (req, res) => {
+app.delete("/urls/:shortURL", (req, res) => {
   if (req.session.userId === urlDatabase[req.params.shortURL].userID) {
     delete urlDatabase[req.params.shortURL];
     res.redirect("/urls");
